@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Benin City Safety Route Checker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        #mapCanvas {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        select {
+            padding: 8px;
+            margin: 5px;
+            width: 200px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .legend {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .legend-item {
+            margin: 5px 0;
+        }
+        .high-risk {
+            color: #ff0000;
+        }
+        .medium-risk {
+            color: #ffa500;
+        }
+        .safe-route {
+            color: #008000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Benin City Safety Route Checker</h1>
+        
+        <div class="controls">
+            <select id="startLocation">
+                <option value="">Select Start Location</option>
+                <option value="ringRoad">Ring Road</option>
+                <option value="newBenin">New Benin</option>
+                <option value="ugbowo">Ugbowo</option>
+                <option value="airport">Airport Road</option>
+                <option value="sapele">Sapele Road</option>
+            </select>
+            
+            <select id="endLocation">
+                <option value="">Select Destination</option>
+                <option value="ringRoad">Ring Road</option>
+                <option value="newBenin">New Benin</option>
+                <option value="ugbowo">Ugbowo</option>
+                <option value="airport">Airport Road</option>
+                <option value="sapele">Sapele Road</option>
+            </select>
+            
+            <button onclick="findSafeRoute()">Find Safe Route</button>
+        </div>
+
+        <canvas id="mapCanvas" width="800" height="600"></canvas>
+        
+        <div class="legend">
+            <h3>Legend</h3>
+            <div class="legend-item high-risk">● High Risk Area</div>
+            <div class="legend-item medium-risk">● Medium Risk Area</div>
+            <div class="legend-item safe-route">― Recommended Safe Route</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Define locations with their coordinates on the canvas
+        const locations = {
+            ringRoad: { x: 400, y: 300 },
+            newBenin: { x: 500, y: 250 },
+            ugbowo: { x: 200, y: 150 },
+            airport: { x: 600, y: 400 },
+            sapele: { x: 300, y: 450 }
+        };
+
+        // Define crime hotspots
+        const hotspots = [
+            { x: 450, y: 280, radius: 30, risk: 'high' },
+            { x: 350, y: 350, radius: 40, risk: 'high' },
+            { x: 520, y: 320, radius: 35, risk: 'medium' },
+            { x: 280, y: 200, radius: 25, risk: 'medium' }
+        ];
+
+        function drawMap() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw hotspots
+            hotspots.forEach(spot => {
+                ctx.beginPath();
+                ctx.arc(spot.x, spot.y, spot.radius, 0, Math.PI * 2);
+                ctx.fillStyle = spot.risk === 'high' ? 'rgba(255, 0, 0, 0.2)' : 'rgba(255, 165, 0, 0.2)';
+                ctx.fill();
+                ctx.strokeStyle = spot.risk === 'high' ? 'red' : 'orange';
+                ctx.stroke();
+            });
+
+            // Draw location points
+            for (const [name, pos] of Object.entries(locations)) {
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = 'blue';
+                ctx.fill();
+                
+                // Add location labels
+                ctx.fillStyle = 'black';
+                ctx.font = '12px Arial';
+                ctx.fillText(name.replace(/([A-Z])/g, ' $1').trim(), pos.x - 20, pos.y - 10);
+            }
+        }
+
+        function findSafeRoute() {
+            const start = document.getElementById('startLocation').value;
+            const end = document.getElementById('endLocation').value;
+
+            if (!start || !end) {
+                alert('Please select both start and end locations');
+                return;
+            }
+
+            if (start === end) {
+                alert('Start and end locations cannot be the same');
+                return;
+            }
+
+            // Redraw the map
+            drawMap();
+
+            // Draw route
+            const startPos = locations[start];
+            const endPos = locations[end];
+
+            // Find a safe route avoiding hotspots
+            ctx.beginPath();
+            ctx.moveTo(startPos.x, startPos.y);
+            
+            // Simple algorithm to avoid hotspots (can be improved)
+            const midX = (startPos.x + endPos.x) / 2;
+            const midY = (startPos.y + endPos.y) / 2;
+            
+            // Adjust midpoint to avoid hotspots
+            let adjustedMidX = midX;
+            let adjustedMidY = midY;
+            
+            hotspots.forEach(spot => {
+                const distToSpot = Math.sqrt(
+                    Math.pow(midX - spot.x, 2) + Math.pow(midY - spot.y, 2)
+                );
+                if (distToSpot < spot.radius + 50) {
+                    adjustedMidX += (midX - spot.x);
+                    adjustedMidY += (midY - spot.y);
+                }
+            });
+
+            // Draw the safe route
+            ctx.strokeStyle = 'green';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(startPos.x, startPos.y);
+            ctx.quadraticCurveTo(adjustedMidX, adjustedMidY, endPos.x, endPos.y);
+            ctx.stroke();
+        }
+
+        // Initial map draw
+        drawMap();
+    </script>
+</body>
+</html>
